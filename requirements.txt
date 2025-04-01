@@ -1,0 +1,20 @@
+# Web server components
+flask==3.0.2
+pyOpenSSL==24.0.0
+flask-socketio==5.3.6
+eventlet==0.33.3
+
+# Object detection components
+ultralytics==8.3.99
+opencv-python==4.9.0.80
+torch==2.0.1
+torchvision==0.15.2
+ultralytics-thop==2.0.14
+
+# Python packages
+numpy>=1.23.0
+pillow>=7.1.2
+pyyaml>=5.3.1
+requests>=2.23.0
+scipy>=1.4.1
+matplotlib>=3.3.0 

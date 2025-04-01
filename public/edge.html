@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>边缘设备 - 视频流</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .setup-container {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .video-container {
+            margin: 20px 0;
+            text-align: center;
+            background-color: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .info {
+            background-color: #d9edf7;
+            color: #31708f;
+        }
+        .device-info {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="js/audio-alert.js"></script>
+</head>
+<body>
+    <h1>边缘设备 - 视频流</h1>
+    
+    <div id="status" class="status info">准备就绪，请配置设备信息</div>
+    
+    <div class="setup-container">
+        <div class="form-group">
+            <label for="deviceNameInput">设备名称</label>
+            <input type="text" id="deviceNameInput" placeholder="请输入设备名称">
+        </div>
+        
+        <div class="form-group">
+            <label for="deviceLocationInput">设备位置</label>
+            <input type="text" id="deviceLocationInput" placeholder="请输入设备位置">
+        </div>
+        
+        <button id="startStreamingBtn">启动视频流</button>
+    </div>
+    
+    <div class="video-container">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <button id="switchCameraBtn" style="position: absolute; bottom: 10px; right: 10px; background-color: rgba(0,0,0,0.5); color: white; border: none; border-radius: 5px; padding: 8px 12px; cursor: pointer; display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 16v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"></path>
+                <polyline points="12 10 16 14 12 18"></polyline>
+                <line x1="8" y1="14" x2="16" y2="14"></line>
+            </svg>
+            切换摄像头
+        </button>
+    </div>
+    
+    <div class="device-info">
+        <div>设备ID: <span id="deviceId">-</span></div>
+        <div>连接状态: <span id="connectionStatus">未连接</span></div>
+    </div>
+    
+    <!-- 添加测试语音按钮到适当位置 -->
+    <button id="testVoiceBtn" style="margin-top: 10px; background-color: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">测试语音功能</button>
+
+    <script>
+        // DOM 元素
+        const statusDiv = document.getElementById('status');
+        const localVideo = document.getElementById('localVideo');
+        const deviceIdSpan = document.getElementById('deviceId');
+        const connectionStatusSpan = document.getElementById('connectionStatus');
+        const deviceNameInput = document.getElementById('deviceNameInput');
+        const deviceLocationInput = document.getElementById('deviceLocationInput');
+        const startStreamingBtn = document.getElementById('startStreamingBtn');
+        const switchCameraBtn = document.getElementById('switchCameraBtn');
+        const testVoiceBtn = document.getElementById('testVoiceBtn');
+        
+        // WebRTC 变量
+        let localStream = null;
+        let deviceId = generateDeviceId();
+        let socket = null;
+        let peerConnection = null;
+        let currentCameraIndex = 0;
+        let videoDevices = [];
+        
+        // 添加语音提醒模块
+        let audioAlert = null;
+        
+        // 防止重复播报的变量
+        let lastAlertId = null;
+        let lastAlertTime = 0;
+        let alertDebounceTime = 10000; // 10秒内不重复播报同类预警
+        let isInitialTestDone = false; // 标记是否已完成初始测试
+        
+        // 生成随机设备ID
+        function generateDeviceId() {
+            return Math.random().toString(36).substring(2, 15);
+        }
+        
+        // 显示状态信息
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(status) {
+            connectionStatusSpan.textContent = status;
+        }
+        
+        // 初始化Socket.IO
+        function initSocketIO() {
+            socket = io({
+                forceNew: true,
+                secure: false,
+                rejectUnauthorized: false,
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000,
+                autoConnect: true,
+                // 确保先尝试WebSocket，再回退到polling
+                transports: ['websocket', 'polling']
+            });
+            
+            // 设置Socket.IO事件处理
+            socket.on('connect', () => {
+                console.log('已连接到信令服务器, socketId:', socket.id);
+                // 注册设备
+                registerDevice();
+                
+                // 主动发送测试消息，确认连接
+                console.log('发送测试消息到服务器');
+                socket.emit('test_connection', {
+                    deviceId: deviceId,
+                    message: '边缘设备测试连接'
+                });
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('连接信令服务器失败:', error);
+                updateStatus('连接信令服务器失败，请刷新页面重试', 'error');
+            });
+            
+            socket.on('register_response', (data) => {
+                console.log('注册响应:', data);
+                if (data.success) {
+                    updateStatus('设备注册成功，等待主设备连接', 'success');
+                } else {
+                    updateStatus('设备注册失败: ' + data.message, 'error');
+                }
+            });
+            
+            socket.on('error', (data) => {
+                console.error('服务器错误:', data.message);
+                updateStatus('错误: ' + data.message, 'error');
+            });
+            
+            socket.on('answer', async (data) => {
+                console.log('收到Answer:', data);
+                try {
+                    const answer = data.answer;
+                    const targetId = data.sourceId;
+                    
+                    // 处理收到的answer
+                    await handleAnswer(answer);
+                    updateStatus('主设备已接受连接', 'success');
+                    updateConnectionStatus('已连接');
+                } catch (error) {
+                    console.error('处理answer失败:', error);
+                    updateStatus('连接失败: ' + error.message, 'error');
+                }
+            });
+            
+            socket.on('ice_candidate', async (data) => {
+                console.log('收到ICE候选:', data);
+                if (peerConnection) {
+                    try {
+                        await peerConnection.addIceCandidate(
+                            new RTCIceCandidate(data.candidate)
+                        );
+                    } catch (error) {
+                        console.error('处理ICE候选失败:', error);
+                    }
+                }
+            });
+            
+            // 处理连接请求
+            socket.on('connection_request', async (data) => {
+                console.log('收到连接请求:', data);
+                try {
+                    const targetId = data.sourceId;
+                    
+                    // 自动开始视频流传输
+                    updateStatus('收到主设备连接请求，准备建立WebRTC连接...', 'info');
+                    startStreamingBtn.disabled = true;
+                    
+                    // 关闭任何现有连接
+                    if (peerConnection) {
+                        console.log('关闭现有连接...');
+                        try {
+                            peerConnection.close();
+                        } catch (e) {
+                            console.warn('关闭现有连接时出错:', e);
+                        }
+                        peerConnection = null;
+                    }
+                    
+                    // 创建新的PeerConnection
+                    peerConnection = createPeerConnection(targetId);
+                    
+                    await attemptConnection(peerConnection, targetId);
+                } catch (error) {
+                    console.error('处理连接请求失败:', error);
+                    updateStatus('建立连接失败: ' + error.message, 'error');
+                    startStreamingBtn.disabled = false;
+                }
+            });
+            
+            // 注册检测警告事件 - 使用全局事件监听
+            socket.on('first_level_alert', (data) => {
+                console.log('收到一级预警消息:', data);
+                
+                // 检查是否为服务器在测试连接时发送的预警 (根据特征识别)
+                if (data.className === '测试对象' || data.className === '测试对象-房间' || 
+                    data.className === '测试对象-SID' || data.message?.includes('测试预警')) {
+                    console.log('忽略服务器测试预警:', data.className || data.message);
+                    return; // 直接忽略服务器测试消息，不播放语音
+                }
+                
+                const currentDeviceId = deviceId;
+                
+                // 记录关键信息以方便调试
+                const alertInfo = {
+                    time: new Date().toLocaleTimeString(),
+                    currentDeviceId: currentDeviceId,
+                    alertDeviceId: data.deviceId,
+                    className: data.className,
+                    classId: data.classId,
+                    objectId: data.objectId || 'unknown'
+                };
+                console.log('预警详细信息:', alertInfo);
+                
+                // 更严格地验证设备ID匹配，确保只响应针对当前设备的预警
+                if (data.deviceId === currentDeviceId) {
+                    console.log('设备ID完全匹配，准备播放语音');
+                    // 本设备的预警，执行语音播报
+                    playAlertSound(data);
+                } else if (data.deviceId && currentDeviceId && 
+                          (data.deviceId.includes(currentDeviceId) || currentDeviceId.includes(data.deviceId))) {
+                    // 如果有部分匹配，也可以考虑播放，但记录更详细的日志
+                    console.log(`设备ID部分匹配: 当前=${currentDeviceId}, 预警目标=${data.deviceId}`);
+                    playAlertSound(data);
+                } else {
+                    console.log('设备ID不匹配，显示信息但不播放语音');
+                    // 仍然显示预警信息
+                    updateStatus(`收到其他设备预警: ${data.message || data.className}`, 'info');
+                }
+            });
+            
+            // 尝试建立连接，并支持重试
+            async function attemptConnection(pc, targetId, retryCount = 0) {
+                const maxRetries = 3;
+                
+                try {
+                    const offer = await createOffer(pc);
+                    
+                    // 发送offer到主设备
+                    socket.emit('offer', {
+                        sourceId: deviceId,
+                        targetId: targetId,
+                        offer: offer
+                    });
+                    
+                    updateStatus('已发送连接请求到主设备，等待响应...', 'info');
+                    updateConnectionStatus('正在连接...');
+                    
+                    // 设置连接超时检查
+                    setTimeout(() => {
+                        if (pc && (pc.iceConnectionState === 'new' || pc.iceConnectionState === 'checking')) {
+                            console.warn('连接超时，可能未收到回应');
+                            
+                            if (retryCount < maxRetries) {
+                                console.log(`尝试第 ${retryCount + 1} 次重新连接...`);
+                                updateStatus(`连接超时，尝试第 ${retryCount + 1} 次重新连接...`, 'info');
+                                attemptConnection(pc, targetId, retryCount + 1);
+                            } else {
+                                updateStatus('多次连接尝试失败，请检查网络或刷新重试', 'error');
+                            }
+                        }
+                    }, 15000); // 15秒超时
+                } catch (error) {
+                    console.error('创建Offer失败:', error);
+                    
+                    if (retryCount < maxRetries) {
+                        console.log(`尝试第 ${retryCount + 1} 次重新连接...`);
+                        updateStatus(`创建Offer失败，尝试第 ${retryCount + 1} 次重新连接...`, 'info');
+                        
+                        // 等待一小段时间再重试
+                        setTimeout(() => {
+                            attemptConnection(pc, targetId, retryCount + 1);
+                        }, 2000);
+                    } else {
+                        updateStatus('多次连接尝试失败，请检查网络或刷新重试', 'error');
+                        throw error;
+                    }
+                }
+            }
+        }
+        
+        // 注册设备到信令服务器
+        function registerDevice() {
+            const deviceName = deviceNameInput.value.trim();
+            const deviceLocation = deviceLocationInput.value.trim();
+            
+            console.log(`准备注册设备，ID: ${deviceId}, 名称: ${deviceName}, 位置: ${deviceLocation}`);
+            
+            // 使用register_device事件，但保留原有字段结构
+            socket.emit('register_device', {
+                deviceId: deviceId,
+                deviceType: 'edge',  // 重要！恢复这个字段，主界面需要它来识别设备类型
+                deviceName: deviceName || 'Edge Device',
+                deviceLocation: deviceLocation || 'Unknown'
+            });
+            
+            console.log(`设备注册请求已发送，等待响应...`);
+            
+            // 同时发送旧版注册请求，确保兼容性
+            socket.emit('register', {
+                deviceId: deviceId,
+                deviceType: 'edge',
+                deviceName: deviceName || 'Edge Device',
+                deviceLocation: deviceLocation || 'Unknown'
+            });
+        }
+        
+        // 创建RTCPeerConnection
+        function createPeerConnection(targetId) {
+            const configuration = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    // 添加更多公共STUN服务器
+                    { urls: 'stun:stun.ekiga.net' },
+                    { urls: 'stun:stun.ideasip.com' },
+                    { urls: 'stun:stun.schlund.de' }
+                ],
+                iceCandidatePoolSize: 10,
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+                iceTransportPolicy: 'all'
+            };
+            
+            console.log('创建RTCPeerConnection, 目标ID:', targetId);
+            const pc = new RTCPeerConnection(configuration);
+            
+            // 添加本地媒体流
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    console.log('添加轨道到RTCPeerConnection:', track.kind);
+                    pc.addTrack(track, localStream);
+                });
+            } else {
+                console.error('本地媒体流不存在，无法添加轨道');
+                updateStatus('错误: 未能获取本地视频流', 'error');
+            }
+            
+            // 监听ICE连接状态
+            pc.oniceconnectionstatechange = () => {
+                console.log('ICE连接状态变化:', pc.iceConnectionState);
+                if (pc.iceConnectionState === 'failed') {
+                    updateStatus('ICE连接失败，尝试重置连接...', 'error');
+                    // 尝试重启ICE
+                    tryRestartIce(pc, targetId);
+                } else if (pc.iceConnectionState === 'disconnected') {
+                    updateStatus('ICE连接暂时断开，等待恢复...', 'info');
+                    // 设置超时检查
+                    setTimeout(() => {
+                        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+                            updateStatus('ICE连接未能恢复，尝试重置连接...', 'error');
+                            tryRestartIce(pc, targetId);
+                        }
+                    }, 5000); // 5秒后检查
+                } else if (pc.iceConnectionState === 'connected') {
+                    updateStatus('ICE连接已建立', 'success');
+                } else if (pc.iceConnectionState === 'completed') {
+                    updateStatus('ICE连接已完成并稳定', 'success');
+                }
+            };
+            
+            // 尝试重启ICE连接
+            function tryRestartIce(connection, targetId) {
+                try {
+                    if (connection.restartIce) {
+                        connection.restartIce();
+                        console.log('尝试restartIce()');
+                    } else {
+                        // 回退方案：创建新的Offer并设置
+                        console.log('restartIce不可用，尝试创建新的offer');
+                        createAndSendNewOffer(connection, targetId);
+                    }
+                } catch (e) {
+                    console.error('重启ICE失败:', e);
+                }
+            }
+            
+            // 创建并发送新的Offer
+            async function createAndSendNewOffer(connection, targetId) {
+                try {
+                    const newOffer = await connection.createOffer({
+                        iceRestart: true,
+                        offerToReceiveVideo: true,
+                        offerToReceiveAudio: false
+                    });
+                    await connection.setLocalDescription(newOffer);
+                    
+                    // 发送新的offer到主设备
+                    socket.emit('offer', {
+                        sourceId: deviceId,
+                        targetId: targetId,
+                        offer: newOffer
+                    });
+                    
+                    console.log('已发送重启ICE的新offer');
+                } catch (e) {
+                    console.error('创建重启ICE的offer失败:', e);
+                }
+            }
+            
+            // 监听ICE收集状态
+            pc.onicegatheringstatechange = () => {
+                console.log('ICE收集状态变化:', pc.iceGatheringState);
+            };
+            
+            // 监听ICE候选
+            pc.onicecandidate = event => {
+                if (event.candidate) {
+                    // 将ICE候选发送到对方
+                    console.log('发送ICE候选到主设备:', targetId);
+                    socket.emit('ice_candidate', {
+                        sourceId: deviceId,
+                        targetId: targetId,
+                        candidate: event.candidate
+                    });
+                } else {
+                    console.log('ICE候选收集完成');
+                }
+            };
+            
+            // 监听连接状态变化
+            pc.onconnectionstatechange = event => {
+                console.log('连接状态变化：', pc.connectionState);
+                if (pc.connectionState === 'connected') {
+                    updateStatus('WebRTC连接成功！视频流传输中', 'success');
+                    updateConnectionStatus('已连接');
+                } else if (pc.connectionState === 'disconnected') {
+                    updateStatus('WebRTC连接暂时断开，尝试重新连接', 'info');
+                    updateConnectionStatus('重新连接中...');
+                } else if (pc.connectionState === 'failed') {
+                    updateStatus('WebRTC连接失败', 'error');
+                    updateConnectionStatus('未连接');
+                    startStreamingBtn.disabled = false;
+                } else if (pc.connectionState === 'closed') {
+                    updateStatus('WebRTC连接已关闭', 'info');
+                    updateConnectionStatus('未连接');
+                    startStreamingBtn.disabled = false;
+                }
+            };
+            
+            return pc;
+        }
+        
+        // 创建并发送SDP offer
+        async function createOffer(peerConnection) {
+            try {
+                const offer = await peerConnection.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: false
+                });
+                await peerConnection.setLocalDescription(offer);
+                
+                return offer;
+            } catch (error) {
+                console.error('创建offer失败:', error);
+                throw error;
+            }
+        }
+        
+        // 处理收到的SDP answer
+        async function handleAnswer(answer) {
+            if (!peerConnection) {
+                console.error('没有活动的连接');
+                return;
+            }
+            
+            try {
+                // 检查当前状态，避免在稳定状态下设置远程描述
+                if (peerConnection.signalingState === 'stable') {
+                    console.warn('连接已处于stable状态，不需要设置远程描述');
+                    return;
+                }
+                
+                // 设置远程描述前记录状态
+                console.log('设置远程描述前的状态:', peerConnection.signalingState);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log('设置远程描述成功，新状态:', peerConnection.signalingState);
+            } catch (error) {
+                console.error('设置远程描述失败:', error);
+                // 尝试恢复连接
+                if (error.message.includes('Called in wrong state')) {
+                    console.warn('状态错误，尝试重置连接...');
+                    // 可以在这里添加重置连接的逻辑
+                }
+                throw error;
+            }
+        }
+        
+        // 初始化摄像头
+        async function initCamera() {
+            try {
+                // 首先获取设备列表
+                await getVideoDevices();
+                
+                // 如果有多个视频设备，显示切换按钮
+                if (videoDevices.length > 1) {
+                    switchCameraBtn.style.display = 'block';
+                }
+                
+                // 获取媒体流
+                try {
+                    localStream = await getMediaStream();
+                    localVideo.srcObject = localStream;
+                    return true;
+                } catch (mediaError) {
+                    console.error('访问摄像头失败:', mediaError);
+                    
+                    if (mediaError.name === 'NotAllowedError') {
+                        updateStatus('请允许浏览器访问摄像头，并确保HTTPS连接正常', 'error');
+                    } else if (mediaError.name === 'NotFoundError') {
+                        updateStatus('未找到摄像头设备，请确认摄像头已连接', 'error');
+                    } else if (mediaError.name === 'NotReadableError') {
+                        updateStatus('摄像头可能被其他程序占用，请关闭其他使用摄像头的应用', 'error');
+                    } else {
+                        updateStatus('摄像头访问失败：' + mediaError.message, 'error');
+                    }
+                    
+                    // 尝试退回到较低分辨率或禁用特定约束
+                    try {
+                        console.log('尝试使用最低要求访问摄像头...');
+                        localStream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { width: 640, height: 480 },
+                            audio: false 
+                        });
+                        localVideo.srcObject = localStream;
+                        updateStatus('已降低视频质量以适应当前环境', 'info');
+                        return true;
+                    } catch (fallbackError) {
+                        console.error('降级访问摄像头失败:', fallbackError);
+                        return false;
+                    }
+                }
+            } catch (error) {
+                console.error('初始化摄像头失败:', error);
+                updateStatus('摄像头访问失败：' + error.message, 'error');
+                return false;
+            }
+        }
+        
+        // 获取所有视频输入设备
+        async function getVideoDevices() {
+            videoDevices = [];
+            
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('找到视频设备:', videoDevices.length, '个');
+                videoDevices.forEach((device, index) => {
+                    console.log(`设备 ${index+1}:`, device.label || `摄像头 ${index+1}`);
+                });
+            } catch (error) {
+                console.error('获取设备失败:', error);
+            }
+        }
+        
+        // 获取媒体流
+        async function getMediaStream() {
+            try {
+                // 安全检查 - 确保是HTTPS环境
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    console.warn('警告: 非HTTPS环境可能无法访问摄像头');
+                    updateStatus('警告: 请使用HTTPS访问以确保摄像头可用', 'info');
+                }
+                
+                // 摄像头选择和清晰度设置
+                const constraints = {
+                    video: videoDevices.length > 0 ? 
+                        { 
+                            deviceId: { exact: videoDevices[currentCameraIndex].deviceId },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            frameRate: { ideal: 30 }
+                        } : 
+                        { 
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            frameRate: { ideal: 30 }
+                        },
+                    audio: false
+                };
+                
+                console.log('尝试使用以下约束获取媒体流:', constraints);
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (error) {
+                console.error('获取媒体流失败:', error);
+                throw error;
+            }
+        }
+        
+        // 切换摄像头
+        async function switchCamera() {
+            if (videoDevices.length <= 1) {
+                updateStatus('没有可用的其他摄像头', 'info');
+                return;
+            }
+            
+            // 停止当前的视频流
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // 切换到下一个摄像头
+            currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+            updateStatus(`正在切换到摄像头 ${currentCameraIndex + 1}/${videoDevices.length}...`, 'info');
+            
+            try {
+                // 获取新的媒体流
+                localStream = await getMediaStream();
+                localVideo.srcObject = localStream;
+                
+                // 如果已经连接到主设备，需要更新WebRTC连接中的流
+                if (peerConnection && peerConnection.connectionState === 'connected') {
+                    updatePeerConnectionStream();
+                }
+                
+                updateStatus(`已切换到摄像头 ${currentCameraIndex + 1}/${videoDevices.length}`, 'success');
+            } catch (error) {
+                updateStatus('切换摄像头失败：' + error.message, 'error');
+                // 尝试回退到前一个摄像头
+                currentCameraIndex = (currentCameraIndex - 1 + videoDevices.length) % videoDevices.length;
+            }
+        }
+        
+        // 更新WebRTC连接中的流
+        function updatePeerConnectionStream() {
+            if (!peerConnection || !localStream) return;
+            
+            // 获取所有发送器
+            const senders = peerConnection.getSenders();
+            
+            // 找到视频发送器
+            const videoSender = senders.find(sender => sender.track && sender.track.kind === 'video');
+            
+            if (videoSender) {
+                // 替换轨道
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoSender.replaceTrack(videoTrack);
+                    console.log('已更新WebRTC连接中的视频轨道');
+                }
+            }
+        }
+        
+        // 播放预警声音
+        function playAlertSound(alertData) {
+            console.log('收到预警声音请求:', alertData);
+            
+            // 如果是测试消息，直接跳过防重复检查
+            if (!alertData.isTest) {
+                // 生成预警ID (设备ID + 类别ID + 时间戳，或使用alertData中的objectId如果存在)
+                const alertId = alertData.objectId || `${alertData.deviceId}_${alertData.classId}_${Date.now()}`;
+                const now = Date.now();
+                
+                // 如果尚未完成初始测试但收到预警，可能是服务器的自动测试消息，直接忽略
+                if (!isInitialTestDone) {
+                    console.log('初始测试尚未完成，忽略预警:', alertId);
+                    return;
+                }
+                
+                // 检查是否是重复预警 (相同ID或相同类别在短时间内)
+                if (lastAlertId === alertId || (alertData.classId === lastAlertId && now - lastAlertTime < alertDebounceTime)) {
+                    console.log('忽略重复预警:', alertId);
+                    return;
+                }
+                
+                // 更新最后播报的预警信息
+                lastAlertId = alertData.classId || alertId; // 存储类别ID或完整ID
+                lastAlertTime = now;
+            }
+            
+            console.log('准备播放预警声音:', alertData);
+            
+            if (!audioAlert) {
+                console.error('语音提醒模块未初始化');
+                audioAlert = new AudioAlert();
+                audioAlert.init();
+                console.log('临时初始化了语音提醒模块');
+            }
+            
+            // 获取警告消息
+            const classId = alertData.classId;
+            const className = alertData.className;
+            let message = audioAlert.alertMessages[classId] || `警告，检测到${className}。`;
+            
+            console.log(`准备语音播报: ${message}`);
+            
+            try {
+                // 仅使用 AudioAlert 类的 speak 方法播放
+                audioAlert.speak(message, () => {
+                    console.log('语音播报完成');
+                });
+                
+                // 更新状态
+                updateStatus(`正在播报预警: ${message}`, 'error');
+            } catch (error) {
+                console.error('语音播报出错:', error);
+                // 尝试使用Alert作为备选方案
+                alert('预警: ' + message);
+            }
+        }
+        
+        // 启动视频流
+        async function startStreaming() {
+            const deviceName = deviceNameInput.value.trim();
+            const deviceLocation = deviceLocationInput.value.trim();
+            
+            if (!deviceName) {
+                updateStatus('请输入设备名称', 'error');
+                return;
+            }
+            
+            startStreamingBtn.disabled = true;
+            
+            // 初始化摄像头
+            const cameraInitialized = await initCamera();
+            if (!cameraInitialized) {
+                startStreamingBtn.disabled = false;
+                return;
+            }
+            
+            // 显示设备ID
+            deviceIdSpan.textContent = deviceId;
+            
+            // 更新状态
+            updateStatus('摄像头访问成功！等待主设备连接', 'success');
+            
+            // 初始化Socket.IO
+            initSocketIO();
+            
+            // 初始化语音提醒模块 (如果未初始化)
+            if (!audioAlert) {
+                console.log('初始化语音提醒模块...');
+                audioAlert = new AudioAlert();
+                audioAlert.init();
+                console.log('语音提醒模块初始化完成');
+            }
+            
+            // 播放一次语音功能检测
+            setTimeout(() => {
+                console.log('执行语音功能检测');
+                const message = "语音播报功能正常";
+                audioAlert.speak(message, () => {
+                    console.log('功能检测语音播报完成');
+                    isInitialTestDone = true; // 标记初始测试已完成
+                });
+                updateStatus('语音模块检测：' + message, 'success');
+            }, 1000);
+        }
+        
+        // 事件监听
+        startStreamingBtn.addEventListener('click', startStreaming);
+        switchCameraBtn.addEventListener('click', switchCamera);
+        
+        // 添加测试语音按钮的事件监听器
+        testVoiceBtn.addEventListener('click', () => {
+            console.log('手动测试语音功能');
+            
+            // 模拟一个预警数据
+            const testAlertData = {
+                deviceId: deviceId,
+                classId: 0, // 电动车
+                className: '电动车',
+                message: '手动测试预警',
+                isTest: true // 标记为测试消息，不受防重复机制影响
+            };
+            
+            // 直接播放测试语音 - 绕过防重复机制
+            if (!audioAlert) {
+                console.error('语音提醒模块未初始化');
+                audioAlert = new AudioAlert();
+                audioAlert.init();
+                console.log('临时初始化了语音提醒模块');
+            }
+            
+            const message = audioAlert.alertMessages[0] || `警告，检测到电动车。`;
+            console.log(`准备测试语音播报: ${message}`);
+            
+            try {
+                // 直接使用语音API播放测试消息
+                audioAlert.speak(message, () => {
+                    console.log('测试语音播报完成');
+                });
+                
+                // 更新状态
+                updateStatus(`测试语音: ${message}`, 'info');
+            } catch (error) {
+                console.error('测试语音播报出错:', error);
+                alert('测试预警: ' + message);
+            }
+        });
+        
+        // 页面加载时，显示设备ID
+        document.addEventListener('DOMContentLoaded', () => {
+            deviceIdSpan.textContent = deviceId;
+            
+            // 立即初始化语音提醒模块
+            console.log('初始化语音提醒模块...');
+            audioAlert = new AudioAlert();
+            audioAlert.init();
+            console.log('语音提醒模块初始化完成');
+        });
+    </script>
+</body>
+</html> 

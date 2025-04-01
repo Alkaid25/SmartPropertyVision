@@ -1,0 +1,335 @@
+/* 操作处理页面样式 */
+.operation-content {
+    display: flex;
+    padding: 20px;
+    gap: 20px;
+}
+
+/* 设备列表 */
+.device-list-container {
+    flex: 3;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    padding: 10px 20px;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.action-btn {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.action-btn:hover {
+    background-color: #2980b9;
+}
+
+.table-wrapper {
+    flex: 1;
+    overflow: auto;
+}
+
+/* 设备表格样式 */
+.device-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #333;
+}
+
+.device-table th,
+.device-table td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.device-table th {
+    background-color: #0078d7;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-weight: normal;
+}
+
+.device-table tbody tr:nth-child(even) {
+    background-color: rgba(240, 240, 240, 0.5);
+}
+
+.device-table tbody tr:hover {
+    background-color: rgba(200, 200, 200, 0.5);
+}
+
+.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 30px;
+}
+
+.sort-icon {
+    margin-left: 5px;
+}
+
+/* 状态样式 */
+.status-active {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.status-warning {
+    color: #f39c12;
+    font-weight: bold;
+}
+
+.status-offline {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* 操作按钮 */
+.action-cell {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.edit-btn, .delete-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 3px;
+    transition: background-color 0.3s;
+}
+
+.edit-btn {
+    color: #3498db;
+}
+
+.delete-btn {
+    color: #e74c3c;
+}
+
+.edit-btn:hover, .delete-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 右侧设备信息面板 */
+.device-info-panel {
+    flex: 2;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.device-info-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+}
+
+/* 设备表单 */
+.device-form h3, .detail-header h3 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 18px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: bold;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.form-group textarea {
+    height: 80px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.save-btn, .cancel-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.save-btn {
+    background-color: #3498db;
+    color: white;
+}
+
+.save-btn:hover {
+    background-color: #2980b9;
+}
+
+.cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #7f8c8d;
+}
+
+/* 设备详情 */
+.hidden {
+    display: none;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+
+.detail-content {
+    margin-bottom: 20px;
+}
+
+.detail-item {
+    margin-bottom: 10px;
+    display: flex;
+}
+
+.detail-label {
+    min-width: 100px;
+    font-weight: bold;
+    color: #555;
+}
+
+.detail-value {
+    flex: 1;
+}
+
+.detail-item.description {
+    display: block;
+}
+
+.detail-item.description .detail-label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.detail-item.description .detail-value {
+    display: block;
+    line-height: 1.5;
+}
+
+/* 设备统计 */
+.detail-stats {
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 5px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.detail-stats h4 {
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 16px;
+}
+
+.stats-container {
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.stat-item {
+    flex: 1;
+    padding: 10px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3498db;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #555;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .operation-content {
+        flex-direction: column;
+    }
+
+    .device-list-container {
+        margin-bottom: 20px;
+    }
+    
+    .device-info-panel {
+        height: 600px;
+    }
+} 

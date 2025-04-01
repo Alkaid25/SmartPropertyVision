@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时监控系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/background-dEEd4UPLZNhL5ogHEHddEnnrEoydQE.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航栏 */
+        .header {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .header nav ul {
+            display: flex;
+            list-style: none;
+        }
+
+        .header nav ul li {
+            margin-right: 40px;
+        }
+
+        .header nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .header nav ul li.active a {
+            color: #3498db;
+            opacity: 1;
+        }
+
+        .header nav ul li a:hover {
+            opacity: 1;
+        }
+
+        /* 主要内容区域 */
+        .content {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+        }
+
+        /* 视频监控区域 */
+        .video-container {
+            flex: 3;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            margin-right: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: white;
+        }
+
+        .timestamp {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .location-info,
+        .page-info {
+            font-size: 16px;
+            color: #3498db;
+        }
+
+        .view-controls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            margin-left: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .view-controls button:hover,
+        .view-controls button.active {
+            opacity: 1;
+            color: #3498db;
+        }
+
+        /* 视频视图 */
+        .video-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 单视频模式 */
+        .main-video-container {
+            flex: 1;
+            padding: 10px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #main-video-wrapper {
+            width: 100%;
+            max-width: 85%;
+            height: auto;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 60px;
+            color: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            aspect-ratio: 16/9;
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 5px;
+            background-color: #000;
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* 视频源选择器 */
+        .video-selector {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: white;
+        }
+
+        .selector-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .selector-controls {
+            display: flex;
+            align-items: center;
+            height: 100px;
+        }
+
+        .selector-controls button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 10px;
+            height: 100%;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .selector-controls button:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .selector-controls button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .selector-items-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .selector-items {
+            display: flex;
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+
+        .selector-item {
+            min-width: 120px;
+            height: 100%;
+            margin: 0 5px;
+            padding: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .selector-item:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .selector-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border: 1px solid #3498db;
+        }
+
+        .video-thumbnail {
+            width: 100%;
+            height: 70px;
+            background-color: rgba(0, 0, 0, 0.5);
+            margin-bottom: 5px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .video-placeholder-small {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .thumbnail-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #000;
+            border-radius: 3px;
+        }
+
+        .video-name {
+            font-size: 12px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 网格视图模式 */
+        .grid-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            position: relative;
+        }
+
+        .grid-nav-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 10px;
+            height: 100%;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+            z-index: 2;
+            position: absolute;
+        }
+
+        .prev-grid-btn {
+            left: 10px;
+        }
+
+        .next-grid-btn {
+            right: 10px;
+        }
+
+        .grid-nav-btn:hover {
+            opacity: 1;
+            color: #3498db;
+        }
+
+        .grid-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .video-grid {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+            width: 100%;
+            margin: 0 50px;
+        }
+        
+        .grid-page {
+            flex: 1 0 100%;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: none;
+        }
+
+        .grid-page.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+            height: 100%;
+        }
+        
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1;
+        }
+
+        /* 右侧检测记录面板 */
+        .detection-panel {
+            flex: 1;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: white;
+        }
+
+        .panel-header h2 {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .detection-item {
+            display: flex;
+            margin-bottom: 15px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .detection-thumbnail {
+            width: 80px;
+            height: 80px;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .detection-info {
+            flex: 1;
+            padding: 10px;
+            position: relative;
+        }
+
+        .detection-location {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .detection-time {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .detection-type {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .manage-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s;
+        }
+
+        .manage-btn:hover {
+            background-color: #2980b9;
+        }
+
+        /* 底部统计图表 */
+        .statistics {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .chart {
+            flex: 1;
+            margin: 0 5px;
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .chart img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 通用空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        /* 设备连接提示 */
+        .connect-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            max-width: 80%;
+            z-index: 10;
+        }
+
+        .connect-hint h3 {
+            margin-bottom: 10px;
+        }
+
+        .connect-hint p {
+            margin-bottom: 15px;
+        }
+
+        .connect-hint button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .connect-hint button:hover {
+            background-color: #2980b9;
+        }
+
+        /* 检测面板相关样式 */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background-color: rgba(52, 152, 219, 0.8);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn:hover {
+            background-color: rgba(41, 128, 185, 1);
+        }
+
+        .no-detection-hint {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #7f8c8d;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .no-detection-hint p:first-child {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* 检测记录项样式 */
+        .detection-item {
+            display: flex;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .detection-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .detection-image {
+            width: 120px;
+            min-width: 120px;
+            height: 90px;
+            overflow: hidden;
+            background-color: #000;
+            position: relative;
+        }
+
+        .detection-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .detection-info {
+            flex: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .detection-location {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+
+        .detection-time {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
+
+        .detection-objects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .detection-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* 统计部分样式 */
+        .statistics {
+            display: flex;
+            padding: 10px;
+            background-color: rgba(236, 240, 241, 0.5);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 5px;
+            border-right: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-right: none;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* 模态对话框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background-color: #3498db;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .close-modal {
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .close-modal:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #ecf0f1;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* 设置项样式 */
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .setting-title {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .setting-label span {
+            margin-left: 8px;
+        }
+
+        .class-checkboxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        /* 通知样式 */
+        #notification-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            max-width: 300px;
+        }
+        
+        .notification {
+            margin-bottom: 10px;
+            padding: 12px 20px;
+            border-radius: 5px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+            color: white;
+            font-size: 14px;
+            animation: slide-in 0.3s ease-out;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .notification.info {
+            background-color: #3498db;
+        }
+        
+        .notification.success {
+            background-color: #2ecc71;
+        }
+        
+        .notification.warning {
+            background-color: #f39c12;
+        }
+        
+        .notification.danger {
+            background-color: #e74c3c;
+        }
+        
+        .notification.fade-out {
+            opacity: 0;
+        }
+        
+        @keyframes slide-in {
+            0% { transform: translateX(100%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="js/detection.js"></script>
+    <script src="js/audio-alert.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <nav>
+                <ul>
+                    <li class="active"><a href="index.html">实时监控</a></li>
+                    <li><a href="operation.html">操作处理</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="content">
+            <!-- 视频监控区域 -->
+            <div class="video-container">
+                <!-- 单视频模式 -->
+                <div id="single-view" class="video-view">
+                    <div class="video-header">
+                        <div class="timestamp" id="current-time">--:--:--</div>
+                        <div class="location-info" id="current-location">未选择设备</div>
+                        <div class="view-controls">
+                            <button id="grid-view-btn" title="网格视图"><i class="fas fa-th-large"></i></button>
+                            <button id="single-view-btn" title="单视图" class="active"><i class="fas fa-bars"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="main-video-container">
+                        <div id="main-video-placeholder" class="video-placeholder">
+                            <i class="fas fa-film"></i>
+                        </div>
+                        <div id="main-video-wrapper" class="video-wrapper hidden" style="position: relative; overflow: hidden; width: 100%; height: 100%; background-color: #000;">
+                            <video id="main-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; display:block; background-color: #000;"></video>
+                        </div>
+                        <div id="connect-hint" class="connect-hint">
+                            <h3>无可用视频源</h3>
+                            <p>请前往"操作处理"页面添加和连接边缘设备</p>
+                            <button onclick="window.location.href='operation.html'">前往设备管理</button>
+                        </div>
+                    </div>
+
+                    <!-- 视频源选择器 -->
+                    <div class="video-selector">
+                        <div class="selector-label">
+                            <span>视频源切换</span>
+                            <span id="stream-time" class="time-display">00:00</span>
+                        </div>
+                        <div class="selector-controls">
+                            <button id="prev-btn" class="prev-btn" disabled><i class="fas fa-chevron-left"></i></button>
+                            <div class="selector-items-container">
+                                <div id="selector-items" class="selector-items">
+                                    <!-- 视频源项将在这里动态生成 -->
+                                </div>
+                            </div>
+                            <button id="next-btn" class="next-btn" disabled><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 网格视图模式 -->
+                <div id="grid-view" class="video-view hidden">
+                    <div class="video-header">
+                        <div class="timestamp" id="grid-current-time">--:--:--</div>
+                        <div class="page-info">第 <span id="current-page">1</span>/<span id="total-pages">1</span> 页
+                        </div>
+                        <div class="view-controls">
+                            <button id="grid-view-btn-2" title="网格视图" class="active"><i
+                                    class="fas fa-th-large"></i></button>
+                            <button id="single-view-btn-2" title="单视图"><i class="fas fa-bars"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="grid-container">
+                        <button id="prev-grid-btn" class="grid-nav-btn prev-grid-btn" disabled><i
+                                class="fas fa-chevron-left"></i></button>
+                        <div class="video-grid" id="video-grid">
+                            <!-- 网格页面将在这里动态生成 -->
+                        </div>
+                        <button id="next-grid-btn" class="grid-nav-btn next-grid-btn" disabled><i
+                                class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧检测记录面板 -->
+            <div class="detection-panel">
+                <div class="panel-header">
+                    <h2>检测记录</h2>
+                    <div class="panel-actions">
+                        <button id="clear-detection-btn" class="action-btn" title="清空记录">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        <button id="detection-settings-btn" class="action-btn" title="检测设置">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="detection-list" class="panel-content">
+                    <!-- 检测记录将在这里动态显示 -->
+                    <div class="no-detection-hint">
+                        <p>暂无检测记录</p>
+                        <p>检测到目标时将在此处显示</p>
+                    </div>
+                </div>
+                
+                <!-- 检测统计 -->
+                <div class="statistics">
+                    <div class="stat-item">
+                        <div class="stat-label">电动车</div>
+                        <div id="e-bike-count" class="stat-value">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">自行车</div>
+                        <div id="bike-count" class="stat-value">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">烟</div>
+                        <div id="smoke-count" class="stat-value">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">火</div>
+                        <div id="fire-count" class="stat-value">0</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 检测设置对话框 -->
+    <div id="detection-settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>检测设置</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <input type="checkbox" id="detection-enabled" checked>
+                        <span>启用检测</span>
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">置信度阈值: <span id="confidence-value">0.35</span></label>
+                    <input type="range" id="confidence-threshold" min="0.1" max="0.9" step="0.05" value="0.35">
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">检测间隔(毫秒)</label>
+                    <select id="detection-interval">
+                        <option value="500">0.5秒</option>
+                        <option value="1000" selected>1秒</option>
+                        <option value="2000">2秒</option>
+                        <option value="5000">5秒</option>
+                    </select>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-title">检测类别</label>
+                    <div class="class-checkboxes">
+                        <label class="setting-label">
+                            <input type="checkbox" id="class-0" checked>
+                            <span>电动车</span>
+                        </label>
+                        <label class="setting-label">
+                            <input type="checkbox" id="class-1" checked>
+                            <span>自行车</span>
+                        </label>
+                        <label class="setting-label">
+                            <input type="checkbox" id="class-2" checked>
+                            <span>烟</span>
+                        </label>
+                        <label class="setting-label">
+                            <input type="checkbox" id="class-3" checked>
+                            <span>火</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-detection-settings" class="action-btn">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 检测记录模板 -->
+    <template id="detection-item-template">
+        <div class="detection-item">
+            <div class="detection-image">
+                <img src="" alt="检测图像">
+            </div>
+            <div class="detection-info">
+                <div class="detection-location"></div>
+                <div class="detection-time"></div>
+                <div class="detection-objects"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="monitor.js"></script>
+    <script>
+        // 检测相关的 UI 交互代码
+        document.addEventListener('DOMContentLoaded', function() {
+            const clearDetectionBtn = document.getElementById('clear-detection-btn');
+            const detectionSettingsBtn = document.getElementById('detection-settings-btn');
+            const detectionSettingsModal = document.getElementById('detection-settings-modal');
+            const closeModalBtn = document.querySelector('.close-modal');
+            const saveSettingsBtn = document.getElementById('save-detection-settings');
+            
+            // 初始化检测设置UI
+            function initDetectionSettings() {
+                const config = detector.getConfig();
+                document.getElementById('detection-enabled').checked = config.enabled;
+                document.getElementById('confidence-threshold').value = config.confidence;
+                document.getElementById('confidence-value').textContent = config.confidence;
+                document.getElementById('detection-interval').value = config.detectionInterval;
+                
+                // 设置类别复选框
+                for (const classId in config.classes) {
+                    const checkbox = document.getElementById(`class-${classId}`);
+                    if (checkbox) {
+                        checkbox.checked = config.classes[classId].enabled;
+                    }
+                }
+            }
+            
+            // 打开设置对话框
+            detectionSettingsBtn.addEventListener('click', function() {
+                initDetectionSettings();
+                detectionSettingsModal.classList.remove('hidden');
+            });
+            
+            // 关闭设置对话框
+            closeModalBtn.addEventListener('click', function() {
+                detectionSettingsModal.classList.add('hidden');
+            });
+            
+            // 保存设置
+            saveSettingsBtn.addEventListener('click', function() {
+                const config = {
+                    enabled: document.getElementById('detection-enabled').checked,
+                    confidence: parseFloat(document.getElementById('confidence-threshold').value),
+                    detectionInterval: parseInt(document.getElementById('detection-interval').value),
+                    classes: {}
+                };
+                
+                // 更新类别设置
+                for (let i = 0; i < 4; i++) {
+                    const checkbox = document.getElementById(`class-${i}`);
+                    if (checkbox) {
+                        config.classes[i] = {
+                            enabled: checkbox.checked
+                        };
+                    }
+                }
+                
+                detector.setConfig(config);
+                detectionSettingsModal.classList.add('hidden');
+            });
+            
+            // 清空检测记录
+            clearDetectionBtn.addEventListener('click', function() {
+                detector.clearDetectionRecords();
+                updateDetectionList();
+            });
+            
+            // 监听置信度滑块变化
+            document.getElementById('confidence-threshold').addEventListener('input', function() {
+                document.getElementById('confidence-value').textContent = this.value;
+            });
+            
+            // 更新检测记录列表
+            function updateDetectionList() {
+                const recordsList = document.getElementById('detection-list');
+                const records = detector.getDetectionRecords();
+                const template = document.getElementById('detection-item-template');
+                const noDetectionHint = document.querySelector('.no-detection-hint');
+                
+                // 清空列表
+                recordsList.innerHTML = '';
+                
+                if (records.length === 0) {
+                    recordsList.appendChild(noDetectionHint || document.createElement('div'));
+                    return;
+                }
+                
+                // 更新统计计数
+                let countEBike = 0, countBike = 0, countSmoke = 0, countFire = 0;
+                
+                // 添加记录
+                records.forEach(record => {
+                    const clone = template.content.cloneNode(true);
+                    const item = clone.querySelector('.detection-item');
+                    
+                    // 设置图像
+                    const img = clone.querySelector('.detection-image img');
+                    img.src = record.imageData;
+                    
+                    // 设置信息
+                    clone.querySelector('.detection-location').textContent = record.deviceName;
+                    clone.querySelector('.detection-time').textContent = new Date(record.timestamp).toLocaleString();
+                    
+                    // 设置检测到的对象
+                    const objectsContainer = clone.querySelector('.detection-objects');
+                    record.detections.forEach(detection => {
+                        const objectElem = document.createElement('span');
+                        objectElem.className = 'detection-type';
+                        objectElem.textContent = detector.classes[detection.class]?.name || '未知类别';
+                        objectElem.style.backgroundColor = detector.classes[detection.class]?.color || '#333';
+                        objectsContainer.appendChild(objectElem);
+                        
+                        // 更新计数
+                        switch (detection.class) {
+                            case 0: countEBike++; break;
+                            case 1: countBike++; break;
+                            case 2: countSmoke++; break;
+                            case 3: countFire++; break;
+                        }
+                    });
+                    
+                    recordsList.appendChild(item);
+                });
+                
+                // 更新统计数字
+                document.getElementById('e-bike-count').textContent = countEBike;
+                document.getElementById('bike-count').textContent = countBike;
+                document.getElementById('smoke-count').textContent = countSmoke;
+                document.getElementById('fire-count').textContent = countFire;
+            }
+            
+            // 监听新检测事件
+            document.addEventListener('detection', function() {
+                updateDetectionList();
+            });
+            
+            // 初始显示
+            updateDetectionList();
+        });
+
+        // 注意：监控页面不需要播放声音，只需显示通知
+        // 注释掉或删除以下初始化代码
+        // const audioAlert = new AudioAlert();
+        // audioAlert.init();
+        
+        // 处理预警通知 - 只显示通知，不播放声音
+        socket.on('alert_notification', function(data) {
+            console.log('收到预警通知:', data);
+            
+            // 根据预警级别处理 - 只显示视觉通知，不播放声音
+            if (data.alertLevel === 1) {
+                // 一级预警 - 显示通知
+                showNotification(data.message, 'warning');
+            } else if (data.alertLevel === 2) {
+                // 二级预警 - 这里可以做更严重的处理
+                showNotification(data.message, 'danger');
+            }
+        });
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            // 添加到通知区域
+            const notificationArea = document.getElementById('notification-area') || document.body;
+            notificationArea.appendChild(notification);
+            
+            // 设置自动消失
+            setTimeout(() => {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 5000);
+        }
+    </script>
+
+    <!-- 添加通知区域 -->
+    <div id="notification-area"></div>
+</body>
+
+</html> 

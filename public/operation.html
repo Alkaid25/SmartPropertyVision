@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作处理 - 实时监控系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-image: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/background-dEEd4UPLZNhL5ogHEHddEnnrEoydQE.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航栏 */
+        .header {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .header nav ul {
+            display: flex;
+            list-style: none;
+        }
+
+        .header nav ul li {
+            margin-right: 40px;
+        }
+
+        .header nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .header nav ul li.active a {
+            color: #3498db;
+            opacity: 1;
+        }
+
+        .header nav ul li a:hover {
+            opacity: 1;
+        }
+
+        /* 主要内容区域 */
+        .operation-content {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* 左侧设备列表 */
+        .device-list-container {
+            flex: 3;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 右侧设备信息面板 */
+        .device-info-panel {
+            flex: 2;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: white;
+        }
+
+        .panel-header h2 {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .action-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .action-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .action-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* 表格样式 */
+        .table-wrapper {
+            flex: 1;
+            overflow: auto;
+            padding: 15px;
+        }
+
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .device-table th,
+        .device-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .device-table th {
+            background-color: rgba(0, 0, 0, 0.05);
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .device-table tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .sortable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .sort-icon {
+            margin-left: 5px;
+            opacity: 0.5;
+        }
+
+        .status-active {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .status-warning {
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .status-offline {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .action-cell {
+            display: flex;
+            gap: 10px;
+        }
+
+        .edit-btn,
+        .delete-btn,
+        .connect-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .edit-btn {
+            color: #3498db;
+        }
+
+        .delete-btn {
+            color: #e74c3c;
+        }
+
+        .connect-btn {
+            color: #27ae60;
+        }
+
+        .edit-btn:hover,
+        .delete-btn:hover,
+        .connect-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* 设备表单 */
+        .device-info-content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .device-form h3,
+        .device-details h3 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .save-btn,
+        .cancel-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .save-btn {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .cancel-btn {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .cancel-btn:hover {
+            background-color: #7f8c8d;
+        }
+
+        /* 设备详情 */
+        .device-details.hidden,
+        .device-form.hidden {
+            display: none;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .detail-item {
+            margin-bottom: 15px;
+            display: flex;
+        }
+
+        .detail-label {
+            width: 100px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .scan-container {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px dashed rgba(0, 0, 0, 0.1);
+        }
+
+        .scan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .scan-header h3 {
+            color: #333;
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .scan-results {
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .edge-device {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .edge-device:last-child {
+            border-bottom: none;
+        }
+
+        .device-info {
+            flex: 1;
+        }
+
+        .device-name {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .device-location {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .device-id {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            color: #3498db;
+        }
+
+        .loading i {
+            margin-right: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 设置面板 */
+        .settings-panel {
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: white;
+        }
+        
+        .settings-header h2 {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .settings-content {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .settings-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .settings-section h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 8px;
+        }
+        
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        
+        .setting-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .setting-label {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .setting-control {
+            flex: 2;
+        }
+        
+        /* 开关样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #3498db;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* 滑块样式 */
+        .range-slider {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .range-slider input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .range-value {
+            text-align: center;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        /* 类别选择样式 */
+        .class-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .class-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.5);
+            transition: background-color 0.3s;
+        }
+        
+        .class-item:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .class-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .class-name {
+            flex: 1;
+        }
+        
+        /* 按钮样式 */
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        
+        .action-btn.primary {
+            background-color: #2ecc71;
+        }
+        
+        .action-btn.primary:hover {
+            background-color: #27ae60;
+        }
+
+        /* 数据库记录列表样式 */
+        .detection-records-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .db-record-item {
+            display: flex;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .db-record-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .record-image-container {
+            width: 120px;
+            height: 90px;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .record-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .no-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            color: white;
+            background-color: #2c3e50;
+            font-size: 12px;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .record-info {
+            flex: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .record-id {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .record-class {
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .record-confidence {
+            background-color: #2ecc71;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .record-details {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* 为不同类别设置不同颜色 */
+        .class-0 .record-class-name { color: #e74c3c; } /* 电动车 - 红色 */
+        .class-1 .record-class-name { color: #2ecc71; } /* 自行车 - 绿色 */
+        .class-2 .record-class-name { color: #3498db; } /* 烟 - 蓝色 */
+        .class-3 .record-class-name { color: #f39c12; } /* 火 - 橙色 */
+    </style>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="js/detection.js"></script>
+</head>
+
+<body>
+    <script>
+        // 全局socket连接实例 - 在文档外声明以便所有事件处理程序都能访问
+        const socket = io({
+            forceNew: true,
+            secure: false,
+            rejectUnauthorized: false,
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            transports: ['websocket', 'polling']
+        });
+        
+        // 生成随机设备ID
+        const deviceId = Math.random().toString(36).substring(2, 15);
+        
+        // Socket连接事件
+        socket.on('connect', () => {
+            console.log('已连接到信令服务器, socket ID:', socket.id);
+            
+            // 注册设备
+            socket.emit('register', {
+                deviceId: deviceId,
+                deviceType: 'main'
+            });
+            
+            // 连接成功后延迟一点时间再加载数据库记录，确保DOM已加载
+            setTimeout(() => {
+                console.log('Socket连接成功，延迟加载数据库记录');
+                loadDbRecords();
+            }, 500);
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket连接错误:', error);
+            alert('连接服务器失败，请确保服务器已启动并刷新页面重试');
+        });
+        
+        // 全局函数 - 加载数据库记录
+        function loadDbRecords() {
+            console.log('正在请求数据库记录...');
+            
+            try {
+                // 获取筛选参数
+                const limit = parseInt(document.getElementById('db-records-limit').value) || 100;
+                const classFilter = document.getElementById('db-records-class').value;
+                const deviceFilter = document.getElementById('db-records-device').value;
+                
+                // 准备请求参数
+                const requestData = {
+                    limit: limit
+                };
+                
+                // 添加可选筛选条件
+                if (classFilter && classFilter !== 'all') {
+                    requestData.class_id = classFilter;
+                }
+                
+                if (deviceFilter && deviceFilter !== 'all') {
+                    requestData.device_id = deviceFilter;
+                }
+                
+                console.log('请求数据库记录参数:', requestData);
+                
+                // 显示加载状态
+                const recordsContainer = document.getElementById('db-records-list');
+                if (recordsContainer) {
+                    recordsContainer.innerHTML = '<div class="loading">加载中...</div>';
+                }
+                
+                // 发送请求到服务器
+                socket.emit('get_db_records', requestData);
+            } catch (error) {
+                console.error('请求数据库记录时发生错误:', error);
+                alert('请求数据库记录失败: ' + error.message);
+            }
+        }
+        
+        // 监听数据库记录响应
+        socket.on('db_records', function(data) {
+            console.log('收到数据库记录响应:', data);
+            
+            try {
+                // 检查是否有错误
+                if (data.error) {
+                    console.error('获取数据库记录失败:', data.error);
+                    alert('获取数据库记录失败: ' + data.error);
+                    return;
+                }
+                
+                // 更新记录计数
+                document.getElementById('db-records-count').textContent = `(${data.count}条记录)`;
+                
+                // 渲染记录
+                renderDbRecords(data.records || []);
+            } catch (error) {
+                console.error('处理数据库记录响应时发生错误:', error);
+                alert('处理数据库记录失败: ' + error.message);
+            }
+        });
+        
+        // 渲染数据库记录
+        function renderDbRecords(records) {
+            console.log("开始渲染数据库记录:", records);
+            const recordsContainer = document.getElementById("db-records-list");
+            recordsContainer.innerHTML = "";
+            
+            if (!records || records.length === 0) {
+                recordsContainer.innerHTML = '<div class="no-records">暂无记录</div>';
+                return;
+            }
+            
+            console.log(`渲染 ${records.length} 条记录`);
+            
+            // 遍历记录并添加到列表
+            records.forEach((record, index) => {
+                try {
+                    console.log(`渲染记录 #${index+1}:`, record);
+                    
+                    // 创建记录容器
+                    const recordItem = document.createElement('div');
+                    recordItem.className = 'db-record-item';
+                    
+                    // 格式化时间戳为可读的日期时间
+                    let firstSeenTime = "未知";
+                    let saveTime = "未知";
+                    let duration = "未知";
+                    
+                    try {
+                        if (record.first_seen_time) {
+                            const firstDate = new Date(parseInt(record.first_seen_time));
+                            firstSeenTime = firstDate.toLocaleString();
+                        }
+                        
+                        if (record.save_time) {
+                            const saveDate = new Date(parseInt(record.save_time));
+                            saveTime = saveDate.toLocaleString();
+                        }
+                        
+                        if (record.first_seen_time && record.last_seen_time) {
+                            const durationMs = parseInt(record.last_seen_time) - parseInt(record.first_seen_time);
+                            duration = (durationMs / 1000).toFixed(1) + "秒";
+                        }
+                    } catch (e) {
+                        console.error("时间戳格式化错误:", e);
+                    }
+                    
+                    // 设置记录内容
+                    let imageHtml = '';
+                    if (record.image_data) {
+                        try {
+                            // 确保image_data是有效的Base64字符串
+                            if (typeof record.image_data === 'string') {
+                                // 检查是否已经是完整的data URL
+                                if (record.image_data.startsWith('data:image')) {
+                                    imageHtml = `<img src="${record.image_data}" class="record-image" alt="${record.class_name || '检测对象'}">`;
+                                } else {
+                                    // 否则添加前缀
+                                    imageHtml = `<img src="data:image/jpeg;base64,${record.image_data}" class="record-image" alt="${record.class_name || '检测对象'}">`;
+                                }
+                            } else {
+                                console.error('图像数据不是有效的字符串');
+                                imageHtml = `<div class="no-image">图像数据无效</div>`;
+                            }
+                        } catch (error) {
+                            console.error('处理图像数据时出错:', error);
+                            imageHtml = `<div class="no-image">图像加载失败</div>`;
+                        }
+                    } else {
+                        imageHtml = `<div class="no-image">无图像</div>`;
+                    }
+                    
+                    // 构建HTML内容
+                    recordItem.innerHTML = `
+                        <div class="record-image-container">
+                            ${imageHtml}
+                        </div>
+                        <div class="record-info">
+                            <div class="record-header">
+                                <span class="record-id">#${record.id || index+1}</span>
+                                <span class="record-class">${record.class_name || '未知类别'}</span>
+                                <span class="record-confidence">${record.confidence ? (record.confidence * 100).toFixed(1) + '%' : '未知'}</span>
+                            </div>
+                            <div class="record-details">
+                                <div><strong>设备:</strong> ${record.device_name || record.device_id || '未知设备'}</div>
+                                <div><strong>首次检测:</strong> ${firstSeenTime}</div>
+                                <div><strong>持续时间:</strong> ${duration}</div>
+                                <div><strong>保存时间:</strong> ${saveTime}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    recordsContainer.appendChild(recordItem);
+                } catch (error) {
+                    console.error(`渲染记录 #${index+1} 失败:`, error, record);
+                }
+            });
+        }
+    </script>
+
+    <div class="container">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <nav>
+                <ul>
+                    <li><a href="index.html">实时监控</a></li>
+                    <li><a href="#">历史查询</a></li>
+                    <li class="active"><a href="operation.html">操作处理</a></li>
+                    <li><a href="#">用户管理</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="operation-content">
+            <!-- 左侧设备列表 -->
+            <div class="device-list-container">
+                <div class="panel-header">
+                    <h2>设备列表</h2>
+                    <button id="add-device-btn" class="action-btn">
+                        <i class="fas fa-plus"></i> 添加设备
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="device-table" class="device-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="name">
+                                    设备名称
+                                    <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                </th>
+                                <th class="sortable" data-sort="location">
+                                    安装位置
+                                    <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                </th>
+                                <th class="sortable" data-sort="id">
+                                    设备编号
+                                    <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                </th>
+                                <th class="sortable" data-sort="status">
+                                    状态
+                                    <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                </th>
+                                <th class="sortable" data-sort="lastActive">
+                                    最后活跃
+                                    <span class="sort-icon"><i class="fas fa-sort"></i></span>
+                                </th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="device-table-body">
+                            <!-- 设备列表将在这里动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 右侧设备信息面板 -->
+            <div class="device-info-panel">
+                <div class="panel-header">
+                    <h2>设备信息</h2>
+                </div>
+                <div class="device-info-content">
+                    <div id="device-form" class="device-form">
+                        <h3 id="form-title">添加设备</h3>
+                        <div class="form-group">
+                            <label for="device-name">设备名称</label>
+                            <input type="text" id="device-name" placeholder="输入设备名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-location">安装位置</label>
+                            <input type="text" id="device-location" placeholder="输入安装位置">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-id">设备编号</label>
+                            <input type="text" id="device-id" placeholder="输入设备编号">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-type">设备类型</label>
+                            <select id="device-type">
+                                <option value="camera">监控摄像头</option>
+                                <option value="sensor">传感器</option>
+                                <option value="alarm">报警设备</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="device-ip">IP地址</label>
+                            <input type="text" id="device-ip" placeholder="输入IP地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-description">设备描述</label>
+                            <textarea id="device-description" placeholder="输入设备描述"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button id="save-device" class="save-btn">保存</button>
+                            <button id="cancel-device" class="cancel-btn">取消</button>
+                        </div>
+                    </div>
+
+                    <div id="device-details" class="device-details hidden">
+                        <div class="detail-header">
+                            <h3 id="detail-title">设备详情</h3>
+                            <button id="back-to-form" class="back-btn"><i class="fas fa-arrow-left"></i> 返回</button>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-item">
+                                <span class="detail-label">设备名称：</span>
+                                <span id="detail-name" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">安装位置：</span>
+                                <span id="detail-location" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">设备编号：</span>
+                                <span id="detail-id" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">设备类型：</span>
+                                <span id="detail-type" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">设备状态：</span>
+                                <span id="detail-status" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">IP地址：</span>
+                                <span id="detail-ip" class="detail-value"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">最后活跃：</span>
+                                <span id="detail-lastActive" class="detail-value"></span>
+                            </div>
+                        </div>
+
+                        <!-- 网络扫描面板 -->
+                        <div class="scan-container">
+                            <div class="scan-header">
+                                <h3>局域网设备扫描</h3>
+                                <button id="scan-devices-btn" class="action-btn">
+                                    <i class="fas fa-search"></i> 扫描设备
+                                </button>
+                            </div>
+                            <div id="scan-results" class="scan-results">
+                                <p class="empty-message">点击"扫描设备"按钮开始扫描局域网中的边缘设备</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 模型设置面板 -->
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2>模型设置</h2>
+                <div class="panel-actions">
+                    <button id="load-default-settings" class="action-btn">恢复默认</button>
+                </div>
+            </div>
+            
+            <div class="settings-content">
+                <!-- 检测开关和参数设置 -->
+                <div class="settings-section">
+                    <h3>检测控制</h3>
+                    
+                    <div class="setting-group">
+                        <div class="setting-row">
+                            <div class="setting-label">启用检测</div>
+                            <div class="setting-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="detection-enabled" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-row">
+                            <div class="setting-label">置信度阈值</div>
+                            <div class="setting-control">
+                                <div class="range-slider">
+                                    <input type="range" id="confidence-threshold" min="0.1" max="0.9" step="0.05" value="0.35">
+                                    <div class="range-value"><span id="confidence-value">0.35</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-row">
+                            <div class="setting-label">检测频率</div>
+                            <div class="setting-control">
+                                <select id="detection-interval" class="form-select">
+                                    <option value="500">每0.5秒</option>
+                                    <option value="1000" selected>每1秒</option>
+                                    <option value="2000">每2秒</option>
+                                    <option value="5000">每5秒</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-row">
+                            <div class="setting-label">保存检测记录数量</div>
+                            <div class="setting-control">
+                                <select id="max-detection-records" class="form-select">
+                                    <option value="10">10条</option>
+                                    <option value="20" selected>20条</option>
+                                    <option value="50">50条</option>
+                                    <option value="100">100条</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 类别设置 -->
+                <div class="settings-section">
+                    <h3>检测类别</h3>
+                    
+                    <div class="setting-group">
+                        <div class="class-selector">
+                            <div class="class-item">
+                                <div class="class-color" style="background-color: rgba(255, 0, 0, 0.8);"></div>
+                                <div class="class-name">电动车</div>
+                                <label class="switch">
+                                    <input type="checkbox" id="class-0" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="class-item">
+                                <div class="class-color" style="background-color: rgba(0, 255, 0, 0.8);"></div>
+                                <div class="class-name">自行车</div>
+                                <label class="switch">
+                                    <input type="checkbox" id="class-1" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="class-item">
+                                <div class="class-color" style="background-color: rgba(0, 0, 255, 0.8);"></div>
+                                <div class="class-name">烟</div>
+                                <label class="switch">
+                                    <input type="checkbox" id="class-2" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="class-item">
+                                <div class="class-color" style="background-color: rgba(255, 165, 0, 0.8);"></div>
+                                <div class="class-name">火</div>
+                                <label class="switch">
+                                    <input type="checkbox" id="class-3" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="apply-settings" class="action-btn primary">应用设置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据库记录区域 -->
+        <div id="database-records-panel" class="operation-panel">
+            <div class="panel-header">
+                <h2>数据库记录 <span id="db-records-count">(0条记录)</span></h2>
+                <div class="panel-actions">
+                    <button id="refresh-records-btn" onclick="loadDbRecords()">刷新记录</button>
+                </div>
+            </div>
+            
+            <div class="panel-filters">
+                <div class="filter-item">
+                    <label>显示条数:</label>
+                    <select id="db-records-limit">
+                        <option value="10">10条</option>
+                        <option value="50" selected>50条</option>
+                        <option value="100">100条</option>
+                        <option value="200">200条</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>类别筛选:</label>
+                    <select id="db-records-class">
+                        <option value="all" selected>全部类别</option>
+                        <!-- 动态填充类别选项 -->
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>设备筛选:</label>
+                    <select id="db-records-device">
+                        <option value="all" selected>全部设备</option>
+                        <!-- 动态填充设备选项 -->
+                    </select>
+                </div>
+                <button onclick="loadDbRecords()">应用筛选</button>
+            </div>
+            
+            <div class="panel-content">
+                <div id="db-records-list" class="records-list">
+                    <!-- 记录将在这里动态生成 -->
+                    <div class="no-records">暂无记录</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据库记录项模板 -->
+    <template id="db-record-template">
+        <div class="db-record-item">
+            <div class="record-image">
+                <img src="" alt="检测图像">
+            </div>
+            <div class="record-info">
+                <div class="record-title">
+                    <span class="record-class-name"></span>
+                    <span class="record-confidence"></span>
+                </div>
+                <div class="record-device"></div>
+                <div class="record-time">
+                    <div>首次检测: <span class="first-seen-time"></span></div>
+                    <div>持续时间: <span class="duration-seconds"></span>秒</div>
+                    <div>保存时间: <span class="save-time"></span></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 使用全局已定义的socket，不再重新创建
+            // 生成随机设备ID，改为使用全局变量
+            let devices = []; // 已保存的设备列表
+            let edgeDevices = []; // 扫描到的边缘设备
+            let editingDevice = null; // 当前正在编辑的设备
+            
+            // 注册响应已经在全局处理，这里只需要监听其他事件
+            
+            // 监听注册响应
+            socket.on('register_response', (data) => {
+                console.log('注册响应:', data);
+                if (data.success) {
+                    console.log('主设备注册成功');
+                    
+                    // 加载本地存储的设备
+                    loadDevices();
+                }
+            });
+            
+            // 接收边缘设备列表
+            socket.on('edge_devices_list', (data) => {
+                console.log('收到边缘设备列表:', data);
+                edgeDevices = data.devices || [];
+                showScanResults();
+            });
+            
+            // 监听设备断开连接
+            socket.on('device_disconnected', (data) => {
+                console.log('设备断开连接:', data);
+                const disconnectedId = data.deviceId;
+                
+                // 更新已保存设备的状态
+                const device = devices.find(d => d.deviceId === disconnectedId);
+                if (device) {
+                    device.status = 'offline';
+                    device.lastActive = formatDateTime(new Date());
+                    saveDevices();
+                    renderDevices();
+                }
+                
+                // 更新扫描结果
+                const edgeIndex = edgeDevices.findIndex(d => d.deviceId === disconnectedId);
+                if (edgeIndex !== -1) {
+                    edgeDevices.splice(edgeIndex, 1);
+                    showScanResults();
+                }
+            });
+            
+            // 扫描局域网设备
+            function scanDevices() {
+                const scanResults = document.getElementById('scan-results');
+                scanResults.innerHTML = `
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i> 正在扫描局域网设备...
+                    </div>
+                `;
+                
+                // 请求边缘设备列表
+                socket.emit('get_edge_devices');
+            }
+            
+            // 显示扫描结果
+            function showScanResults() {
+                const scanResults = document.getElementById('scan-results');
+                
+                if (edgeDevices.length === 0) {
+                    scanResults.innerHTML = '<p class="empty-message">未发现局域网中的边缘设备</p>';
+                    return;
+                }
+                
+                let html = '';
+                edgeDevices.forEach(device => {
+                    // 检查设备是否已添加到设备列表
+                    const isAdded = devices.some(d => d.deviceId === device.deviceId);
+                    
+                    html += `
+                        <div class="edge-device">
+                            <div class="device-info">
+                                <div class="device-name">${device.deviceName || 'Edge Device'}</div>
+                                <div class="device-location">${device.deviceLocation || 'Unknown'}</div>
+                                <div class="device-id">ID: ${device.deviceId}</div>
+                            </div>
+                            <button class="action-btn ${isAdded ? 'cancel-btn' : ''}" 
+                                    ${isAdded ? 'disabled' : ''} 
+                                    data-id="${device.deviceId}" 
+                                    onclick="addEdgeDevice(this)">
+                                ${isAdded ? '已添加' : '添加设备'}
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                scanResults.innerHTML = html;
+                
+                // 添加边缘设备点击事件
+                document.querySelectorAll('[onclick="addEdgeDevice(this)"]').forEach(btn => {
+                    btn.onclick = function() {
+                        const edgeId = this.getAttribute('data-id');
+                        const edgeDevice = edgeDevices.find(d => d.deviceId === edgeId);
+                        
+                        if (edgeDevice) {
+                            // 添加到设备列表
+                            const newDevice = {
+                                id: generateDeviceId(),
+                                name: edgeDevice.deviceName || `边缘设备 ${edgeId.substring(0, 4)}`,
+                                location: edgeDevice.deviceLocation || '未知位置',
+                                deviceId: edgeDevice.deviceId,
+                                type: 'camera',
+                                status: 'active',
+                                ip: '获取中...',
+                                lastActive: formatDateTime(new Date()),
+                                description: `从局域网自动添加的边缘设备`
+                            };
+                            
+                            devices.push(newDevice);
+                            saveDevices();
+                            renderDevices();
+                            showScanResults(); // 更新扫描结果界面
+                            
+                            // 使用Socket.IO建立连接
+                            connectToEdgeDevice(edgeDevice.deviceId);
+                        }
+                    };
+                });
+            }
+            
+            // 连接到边缘设备
+            function connectToEdgeDevice(edgeId) {
+                console.log(`尝试连接到边缘设备 ${edgeId}`);
+                
+                // 发送连接请求
+                socket.emit('connection_request', {
+                    sourceId: deviceId,
+                    targetId: edgeId
+                });
+            }
+            
+            // 生成设备ID
+            function generateDeviceId() {
+                return 'DEV' + new Date().getTime().toString().substring(6);
+            }
+            
+            // 格式化日期时间
+            function formatDateTime(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            }
+            
+            // 加载设备列表
+            function loadDevices() {
+                const savedDevices = localStorage.getItem('devices');
+                if (savedDevices) {
+                    devices = JSON.parse(savedDevices);
+                }
+                renderDevices();
+            }
+            
+            // 保存设备列表
+            function saveDevices() {
+                localStorage.setItem('devices', JSON.stringify(devices));
+            }
+            
+            // 渲染设备列表
+            function renderDevices() {
+                const tableBody = document.getElementById('device-table-body');
+                
+                if (devices.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="empty-message">没有设备记录</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                devices.forEach(device => {
+                    const statusClass = device.status === 'active' ? 'status-active' : 
+                                        device.status === 'warning' ? 'status-warning' : 'status-offline';
+                    const statusText = device.status === 'active' ? '正常运行' : 
+                                      device.status === 'warning' ? '需要维护' : '离线';
+                    
+                    html += `
+                        <tr data-id="${device.id}">
+                            <td>${device.name}</td>
+                            <td>${device.location}</td>
+                            <td>${device.id}</td>
+                            <td><span class="${statusClass}">${statusText}</span></td>
+                            <td>${device.lastActive}</td>
+                            <td class="action-cell">
+                                <button class="edit-btn" title="编辑"><i class="fas fa-edit"></i></button>
+                                <button class="delete-btn" title="删除"><i class="fas fa-trash-alt"></i></button>
+                                <button class="connect-btn" title="连接"><i class="fas fa-link"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tableBody.innerHTML = html;
+                
+                // 添加编辑按钮事件
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const row = this.closest('tr');
+                        const id = row.getAttribute('data-id');
+                        editDevice(id);
+                    });
+                });
+                
+                // 添加删除按钮事件
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const row = this.closest('tr');
+                        const id = row.getAttribute('data-id');
+                        deleteDevice(id);
+                    });
+                });
+                
+                // 添加连接按钮事件
+                document.querySelectorAll('.connect-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const row = this.closest('tr');
+                        const id = row.getAttribute('data-id');
+                        const device = devices.find(d => d.id === id);
+                        
+                        if (device && device.deviceId) {
+                            connectToEdgeDevice(device.deviceId);
+                        }
+                    });
+                });
+            }
+            
+            // 添加设备
+            function showAddDeviceForm() {
+                document.getElementById('form-title').textContent = '添加设备';
+                document.getElementById('device-form').classList.remove('hidden');
+                document.getElementById('device-details').classList.add('hidden');
+                
+                // 清空表单
+                document.getElementById('device-name').value = '';
+                document.getElementById('device-location').value = '';
+                document.getElementById('device-id').value = generateDeviceId();
+                document.getElementById('device-type').value = 'camera';
+                document.getElementById('device-ip').value = '';
+                document.getElementById('device-description').value = '';
+                
+                editingDevice = null;
+            }
+            
+            // 编辑设备
+            function editDevice(id) {
+                const device = devices.find(d => d.id === id);
+                if (!device) return;
+                
+                document.getElementById('form-title').textContent = '编辑设备';
+                document.getElementById('device-form').classList.remove('hidden');
+                document.getElementById('device-details').classList.add('hidden');
+                
+                // 填充表单
+                document.getElementById('device-name').value = device.name;
+                document.getElementById('device-location').value = device.location;
+                document.getElementById('device-id').value = device.id;
+                document.getElementById('device-type').value = device.type;
+                document.getElementById('device-ip').value = device.ip || '';
+                document.getElementById('device-description').value = device.description || '';
+                
+                editingDevice = device;
+            }
+            
+            // 删除设备
+            function deleteDevice(id) {
+                if (confirm('确定要删除此设备吗？')) {
+                    const index = devices.findIndex(d => d.id === id);
+                    if (index !== -1) {
+                        devices.splice(index, 1);
+                        saveDevices();
+                        renderDevices();
+                    }
+                }
+            }
+            
+            // 显示设备详情
+            function showDeviceDetails() {
+                document.getElementById('device-form').classList.add('hidden');
+                document.getElementById('device-details').classList.remove('hidden');
+                
+                // 设置默认值
+                document.getElementById('detail-name').textContent = '-';
+                document.getElementById('detail-location').textContent = '-';
+                document.getElementById('detail-id').textContent = '-';
+                document.getElementById('detail-type').textContent = '-';
+                document.getElementById('detail-status').textContent = '-';
+                document.getElementById('detail-status').className = 'detail-value';
+                document.getElementById('detail-ip').textContent = '-';
+                document.getElementById('detail-lastActive').textContent = '-';
+            }
+            
+            // 保存设备
+            function saveDevice() {
+                const name = document.getElementById('device-name').value.trim();
+                const location = document.getElementById('device-location').value.trim();
+                const id = document.getElementById('device-id').value.trim();
+                const type = document.getElementById('device-type').value;
+                const ip = document.getElementById('device-ip').value.trim();
+                const description = document.getElementById('device-description').value.trim();
+                
+                if (!name || !location || !id) {
+                    alert('请填写设备名称、安装位置和设备编号');
+                    return;
+                }
+                
+                if (editingDevice) {
+                    // 更新现有设备
+                    editingDevice.name = name;
+                    editingDevice.location = location;
+                    editingDevice.id = id;
+                    editingDevice.type = type;
+                    editingDevice.ip = ip;
+                    editingDevice.description = description;
+                } else {
+                    // 添加新设备
+                    const newDevice = {
+                        id: id,
+                        name: name,
+                        location: location,
+                        type: type,
+                        status: 'offline',
+                        ip: ip,
+                        lastActive: formatDateTime(new Date()),
+                        description: description
+                    };
+                    
+                    devices.push(newDevice);
+                }
+                
+                saveDevices();
+                renderDevices();
+                showDeviceDetails();
+            }
+            
+            // 添加事件监听器
+            const addDeviceBtn = document.getElementById('add-device-btn');
+            const saveDeviceBtn = document.getElementById('save-device');
+            const cancelDeviceBtn = document.getElementById('cancel-device');
+            const backToFormBtn = document.getElementById('back-to-form');
+            const scanDevicesBtn = document.getElementById('scan-devices-btn');
+            
+            addDeviceBtn.addEventListener('click', showAddDeviceForm);
+            
+            saveDeviceBtn.addEventListener('click', saveDevice);
+            
+            cancelDeviceBtn.addEventListener('click', showDeviceDetails);
+            
+            backToFormBtn.addEventListener('click', showAddDeviceForm);
+            
+            scanDevicesBtn.addEventListener('click', scanDevices);
+            
+            // 初始化
+            showDeviceDetails();
+
+            // 初始化对象检测模块
+            if (typeof detector !== 'undefined') {
+                detector.init(socket);
+            }
+            
+            // 获取DOM元素
+            const detectionEnabledCheckbox = document.getElementById('detection-enabled');
+            const confidenceThresholdInput = document.getElementById('confidence-threshold');
+            const confidenceValueDisplay = document.getElementById('confidence-value');
+            const detectionIntervalSelect = document.getElementById('detection-interval');
+            const maxDetectionRecordsSelect = document.getElementById('max-detection-records');
+            const applySettingsBtn = document.getElementById('apply-settings');
+            const loadDefaultSettingsBtn = document.getElementById('load-default-settings');
+            
+            // 显示当前置信度值
+            confidenceThresholdInput.addEventListener('input', function() {
+                confidenceValueDisplay.textContent = this.value;
+            });
+            
+            // 加载当前设置
+            function loadCurrentSettings() {
+                if (typeof detector === 'undefined') return;
+                
+                const config = detector.getConfig();
+                
+                detectionEnabledCheckbox.checked = config.enabled;
+                confidenceThresholdInput.value = config.confidence;
+                confidenceValueDisplay.textContent = config.confidence;
+                detectionIntervalSelect.value = config.detectionInterval;
+                maxDetectionRecordsSelect.value = config.maxDetectionRecords;
+                
+                // 设置类别复选框
+                for (const classId in config.classes) {
+                    const checkbox = document.getElementById(`class-${classId}`);
+                    if (checkbox) {
+                        checkbox.checked = config.classes[classId].enabled;
+                    }
+                }
+            }
+            
+            // 加载默认设置
+            function loadDefaultSettings() {
+                detectionEnabledCheckbox.checked = true;
+                confidenceThresholdInput.value = 0.35;
+                confidenceValueDisplay.textContent = 0.35;
+                detectionIntervalSelect.value = 1000;
+                maxDetectionRecordsSelect.value = 20;
+                
+                // 设置类别复选框
+                for (let i = 0; i < 4; i++) {
+                    const checkbox = document.getElementById(`class-${i}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                }
+            }
+            
+            // 应用设置
+            function applySettings() {
+                if (typeof detector === 'undefined') {
+                    alert('检测模块未正确加载，无法应用设置');
+                    return;
+                }
+                
+                const config = {
+                    enabled: detectionEnabledCheckbox.checked,
+                    confidence: parseFloat(confidenceThresholdInput.value),
+                    detectionInterval: parseInt(detectionIntervalSelect.value),
+                    maxDetectionRecords: parseInt(maxDetectionRecordsSelect.value),
+                    classes: {}
+                };
+                
+                // 更新类别设置
+                for (let i = 0; i < 4; i++) {
+                    const checkbox = document.getElementById(`class-${i}`);
+                    if (checkbox) {
+                        config.classes[i] = {
+                            enabled: checkbox.checked
+                        };
+                    }
+                }
+                
+                // 设置配置
+                detector.setConfig(config);
+                
+                alert('设置已应用');
+            }
+            
+            // 绑定事件
+            applySettingsBtn.addEventListener('click', applySettings);
+            loadDefaultSettingsBtn.addEventListener('click', loadDefaultSettings);
+            
+            // 初始加载当前设置
+            loadCurrentSettings();
+        });
+
+        // 数据库记录相关功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const refreshDbRecordsBtn = document.getElementById('refresh-records-btn');
+            const applyFiltersBtn = document.querySelector('button[onclick="loadDbRecords()"]');
+            const recordLimitSelect = document.getElementById('db-records-limit');
+            const classFilterSelect = document.getElementById('db-records-class');
+            const deviceFilterSelect = document.getElementById('db-records-device');
+            
+            // 确保DOM元素可用
+            if (!refreshDbRecordsBtn || !applyFiltersBtn || !recordLimitSelect || 
+                !classFilterSelect || !deviceFilterSelect) {
+                console.error('数据库记录DOM元素未正确加载');
+                return;
+            }
+            
+            console.log('数据库记录DOM元素已加载，初始化功能');
+            
+            // 加载设备列表到过滤器
+            function loadDeviceOptions() {
+                if (socket && socket.connected) {
+                    socket.emit('get_edge_devices');
+                } else {
+                    console.warn('Socket未连接，无法获取边缘设备列表');
+                    setTimeout(loadDeviceOptions, 1000);
+                }
+            }
+            
+            // 监听边缘设备列表响应
+            socket.on('edge_devices_list', function(data) {
+                console.log('收到边缘设备列表:', data);
+                
+                // 清空现有选项，但保留"全部设备"选项
+                deviceFilterSelect.innerHTML = '<option value="">全部设备</option>';
+                
+                // 添加设备选项
+                if (data.devices && data.devices.length > 0) {
+                    data.devices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.textContent = device.deviceName || `设备 ${device.deviceId.substring(0, 6)}`;
+                        deviceFilterSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // 监听数据库保存事件
+            document.addEventListener('db_save', function(event) {
+                console.log('收到数据库保存事件:', event.detail);
+                // 自动刷新记录
+                loadDbRecords();
+            });
+            
+            // 监听db_save_result事件
+            socket.on('db_save_result', function(data) {
+                console.log('收到数据库保存结果:', data);
+                if (data.success) {
+                    // 自动刷新记录
+                    setTimeout(loadDbRecords, 500);
+                }
+            });
+            
+            // 事件监听
+            refreshDbRecordsBtn.addEventListener('click', function() {
+                console.log('点击刷新数据库记录');
+                loadDbRecords();
+            });
+            
+            applyFiltersBtn.addEventListener('click', function() {
+                console.log('点击应用过滤器');
+                loadDbRecords();
+            });
+            
+            // 初始化
+            loadDeviceOptions();
+            
+            // 确保页面完全加载后再次尝试加载数据库记录
+            setTimeout(function() {
+                console.log('页面完全加载后尝试加载数据库记录');
+                loadDbRecords();
+            }, 2000);
+        });
+    </script>
+</body>
+
+</html> 
